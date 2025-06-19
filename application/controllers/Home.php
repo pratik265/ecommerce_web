@@ -257,7 +257,7 @@ class Home extends CI_Controller {
             show_404();
         }
         
-        $data['title'] = 'Order Success';
+        $data['title'] = 'Order Successfully';
         $data['order'] = $order;
         $data['order_items'] = $this->Order_model->get_order_items($order_id);
         
