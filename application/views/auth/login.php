@@ -1,3 +1,9 @@
+<?php
+$customer_login = (uri_string() === 'customer/login');
+$form_action = $customer_login ? 'customer/login' : 'login';
+$title = $customer_login ? 'Customer Login' : 'Welcome Back';
+$register_url = $customer_login ? base_url('customer/register') : base_url('register');
+?>
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-6 col-lg-4">
@@ -5,11 +11,11 @@
                 <div class="card-body p-5">
                     <div class="text-center mb-4">
                         <i class="fas fa-user-circle fa-3x text-primary mb-3"></i>
-                        <h3 class="fw-bold">Welcome Back</h3>
+                        <h3 class="fw-bold"><?= $title ?></h3>
                         <p class="text-muted">Sign in to your account</p>
                     </div>
                     
-                    <?= form_open('login', ['class' => 'needs-validation', 'novalidate' => '']) ?>
+                    <?= form_open($form_action, ['class' => 'needs-validation', 'novalidate' => '']) ?>
                         <div class="mb-3">
                             <label for="email" class="form-label">Email Address</label>
                             <div class="input-group">
@@ -40,7 +46,7 @@
                     
                     <div class="text-center">
                         <p class="mb-0">Don't have an account? 
-                            <a href="<?= base_url('register') ?>" class="text-primary fw-bold">Sign up here</a>
+                            <a href="<?= $register_url ?>" class="text-primary fw-bold">Sign up here</a>
                         </p>
                     </div>
                 </div>

@@ -11,6 +11,7 @@ class Admin extends CI_Controller {
         $this->load->model('Blog_model');
         $this->load->model('Order_model');
         $this->load->model('Chat_model');
+        $this->load->model('Customer_model');
         $this->load->library('form_validation');
         
         // Check if user is admin
@@ -67,6 +68,26 @@ class Admin extends CI_Controller {
         } else {
             redirect_with_message('admin/users', 'Failed to delete user.', 'error');
         }
+    }
+    
+    public function user_customers($user_id) {
+        $this->load->model('Customer_model');
+        $this->load->model('Order_model');
+        $user = $this->User_model->get_user_by_id($user_id);
+        if (!$user) {
+            show_404();
+        }
+        $customers = $this->Customer_model->get_all_customers($user_id);
+        // For each customer, get order count
+        foreach ($customers as &$customer) {
+            $customer->order_count = $this->Order_model->count_customer_orders($customer->id);
+        }
+        $data['title'] = 'Customers of ' . htmlspecialchars($user->name);
+        $data['user'] = $user;
+        $data['customers'] = $customers;
+        $this->load->view('admin/templates/header', $data);
+        $this->load->view('admin/users/customers', $data);
+        $this->load->view('admin/templates/footer');
     }
     
     // Product Management
@@ -839,63 +860,36 @@ class Admin extends CI_Controller {
         $this->load->view('admin/templates/footer');
     }
     
-    // AJAX method to send admin message
+    // AJAX: Send admin message
     public function send_admin_message() {
         if (!$this->input->is_ajax_request()) {
             show_404();
         }
-        
+        $admin_id = $this->session->userdata('user_id');
         $room_id = $this->input->post('room_id');
         $message = trim($this->input->post('message'));
-        
-        if (empty($message)) {
-            echo json_encode(array('success' => false, 'message' => 'Message cannot be empty'));
+
+        if (empty($message) || empty($room_id)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid input']);
             return;
         }
-        
-        // Send message
-        $message_id = $this->Chat_model->send_message($room_id, 1, 'admin', $message);
+
+        $message_id = $this->Chat_model->send_message(
+            $room_id, 
+            $admin_id, 
+            'admin', 
+            $message
+        );
         
         if ($message_id) {
-            echo json_encode(array(
-                'success' => true, 
-                'message_id' => $message_id,
-                'timestamp' => date('H:i')
-            ));
+            $new_message = $this->db->get_where('chat_messages', ['id' => $message_id])->row();
+            echo json_encode(['success' => true, 'message' => $new_message]);
         } else {
-            echo json_encode(array('success' => false, 'message' => 'Failed to send message'));
+            echo json_encode(['success' => false, 'message' => 'Failed to send message']);
         }
     }
     
-    // AJAX method to get room messages
-    public function get_room_messages($room_id) {
-        if (!$this->input->is_ajax_request()) {
-            show_404();
-        }
-        
-        $messages = $this->Chat_model->get_room_messages($room_id);
-        
-        // Mark user messages as read
-        $this->Chat_model->mark_as_read($room_id, 'user');
-        
-        $formatted_messages = array();
-        foreach ($messages as $msg) {
-            $formatted_messages[] = array(
-                'id' => $msg->id,
-                'message' => $msg->message,
-                'sender_type' => $msg->sender_type,
-                'timestamp' => date('H:i', strtotime($msg->created_at)),
-                'is_read' => $msg->is_read
-            );
-        }
-        
-        echo json_encode(array(
-            'success' => true,
-            'messages' => $formatted_messages
-        ));
-    }
-    
-    // AJAX method to check for new messages in admin room
+    // AJAX: Check for new messages from user
     public function check_admin_new_messages($room_id) {
         if (!$this->input->is_ajax_request()) {
             show_404();

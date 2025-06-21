@@ -17,6 +17,7 @@
                     </div>
                     <div class="card-body">
                         <?php foreach ($cart_items as $item): ?>
+                            <?php $quantity = isset($item['quantity']) ? $item['quantity'] : 1; ?>
                             <div class="row align-items-center mb-3 pb-3 border-bottom" data-product-id="<?= $item['id'] ?>">
                                 <div class="col-md-2">
                                     <img src="<?= base_url('uploads/products/' . $item['image']) ?>" 
@@ -29,15 +30,15 @@
                                 <div class="col-md-3">
                                     <div class="input-group" style="width: 120px;">
                                         <button class="btn btn-outline-secondary btn-sm" type="button" 
-                                                onclick="updateCartQuantity(<?= $item['id'] ?>, <?= $item['quantity'] - 1 ?>)">-</button>
-                                        <input type="number" class="form-control text-center" value="<?= $item['quantity'] ?>" 
+                                                onclick="updateCartQuantity(<?= $item['id'] ?>, <?= $quantity - 1 ?>)">-</button>
+                                        <input type="number" class="form-control text-center" value="<?= $quantity ?>" 
                                                min="1" onchange="updateCartQuantity(<?= $item['id'] ?>, this.value)">
                                         <button class="btn btn-outline-secondary btn-sm" type="button" 
-                                                onclick="updateCartQuantity(<?= $item['id'] ?>, <?= $item['quantity'] + 1 ?>)">+</button>
+                                                onclick="updateCartQuantity(<?= $item['id'] ?>, <?= $quantity + 1 ?>)">+</button>
                                     </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <strong class="item-total"><?= format_price($item['price'] * $item['quantity']) ?></strong>
+                                    <strong class="item-total"><?= format_price($item['price'] * $quantity) ?></strong>
                                 </div>
                                 <div class="col-md-1">
                                     <button class="btn btn-outline-danger btn-sm" 
@@ -61,7 +62,8 @@
                         <?php 
                         $subtotal = 0;
                         foreach ($cart_items as $item) {
-                            $subtotal += $item['price'] * $item['quantity'];
+                            $quantity = isset($item['quantity']) ? $item['quantity'] : 1;
+                            $subtotal += $item['price'] * $quantity;
                         }
                         $shipping = $subtotal > 50 ? 0 : 10;
                         $total = $subtotal + $shipping;

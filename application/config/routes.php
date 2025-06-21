@@ -135,6 +135,14 @@ $route['chat/send_message'] = 'chat/send_message';
 $route['chat/get_messages'] = 'chat/get_messages';
 $route['chat/check_new_messages'] = 'chat/check_new_messages';
 
+// Customer Chat Route
+$route['customer/chat'] = 'customer/chat';
+
+// Customer Profile & Orders
+$route['customer/profile'] = 'customer/profile';
+$route['customer/orders'] = 'customer/orders';
+$route['customer/order/(:num)'] = 'customer/order_details/$1';
+
 // Admin Chat Routes
 $route['admin/chat'] = 'admin/chat';
 $route['admin/chat_room/(:num)'] = 'admin/chat_room/$1';

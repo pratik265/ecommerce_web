@@ -8,12 +8,13 @@ class Order_model extends CI_Model {
         $this->load->helper('common');
     }
     
-    public function create_order($user_id, $total_amount, $shipping_address, $payment_method) {
+    public function create_order($user_id, $total_amount, $shipping_address, $payment_method, $customer_id = 0) {
         $order_number = 'ORD-' . date('Ymd') . '-' . rand(1000, 9999);
         
         $order_data = array(
             'order_number' => $order_number,
             'user_id' => $user_id,
+            'customer_id' => $customer_id,
             'total_amount' => $total_amount,
             'shipping_address' => $shipping_address,
             'payment_method' => $payment_method
@@ -67,20 +68,30 @@ class Order_model extends CI_Model {
         return get_multiple_rows('order_items', array('order_id' => $order_id));
     }
     
-    public function get_user_orders($user_id) {
-        $this->db->select('orders.*, users.name as customer_name');
-        $this->db->from('orders');
-        $this->db->join('users', 'users.id = orders.user_id', 'left');
-        $this->db->where('orders.user_id', $user_id);
-        $this->db->order_by('orders.created_at', 'DESC');
+    public function get_user_orders($user_id, $limit = 10) {
+        return $this->db->where('user_id', $user_id)->order_by('created_at', 'DESC')->limit($limit)->get('orders')->result();
+    }
+    
+    public function get_orders_by_customer($customer_id, $limit = 0) {
+        $this->db->select('o.*, c.name as customer_name');
+        $this->db->from('orders o');
+        $this->db->join('customers c', 'c.id = o.customer_id');
+        $this->db->where('o.customer_id', $customer_id);
+        $this->db->order_by('o.created_at', 'DESC');
+        if($limit > 0) {
+            $this->db->limit($limit);
+        }
         return $this->db->get()->result();
     }
     
-    public function get_all_orders() {
-        $this->db->select('orders.*, users.name as customer_name, users.email as customer_email');
-        $this->db->from('orders');
-        $this->db->join('users', 'users.id = orders.user_id', 'left');
-        $this->db->order_by('orders.created_at', 'DESC');
+    public function get_all_orders($limit = 0) {
+        $this->db->select('o.*, u.name as user_name');
+        $this->db->from('orders o');
+        $this->db->join('users u', 'u.id = o.user_id', 'left');
+        $this->db->order_by('o.created_at', 'DESC');
+        if($limit > 0) {
+            $this->db->limit($limit);
+        }
         return $this->db->get()->result();
     }
     
@@ -298,5 +309,21 @@ class Order_model extends CI_Model {
     
     public function clear_cart() {
         $this->session->unset_userdata('cart');
+    }
+    
+    public function count_customer_orders($customer_id) {
+        return $this->db->where('customer_id', $customer_id)->count_all_results('orders');
+    }
+    
+    public function get_order_details($order_id) {
+        $order = $this->db->get_where('orders', ['id' => $order_id])->row();
+        if ($order) {
+            $this->db->select('oi.*, p.name, p.image');
+            $this->db->from('order_items oi');
+            $this->db->join('products p', 'p.id = oi.product_id');
+            $this->db->where('oi.order_id', $order_id);
+            $order->items = $this->db->get()->result();
+        }
+        return $order;
     }
 } 

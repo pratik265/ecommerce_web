@@ -25,8 +25,16 @@ class Home extends CI_Controller {
         $data['sliders'] = get_multiple_rows('sliders', array('status' => 'active'), '*', 'sort_order ASC');
         if (is_logged_in()) {
             $data['chat_unread_count'] = $this->chat_model->get_unread_count($this->session->userdata('user_id'));
+            // Fix: Use require_once and instantiate Customer_model directly
+            require_once(APPPATH . 'models/Customer_model.php');
+            $user_id = $this->session->userdata('user_id');
+            $customer_model = new Customer_model();
+            $data['customers'] = $customer_model->get_all_customers($user_id);
+            // Fetch user orders
+            $data['orders'] = $this->Order_model->get_user_orders($user_id);
         } else {
             $data['chat_unread_count'] = 0;
+            $data['customers'] = array();
         }
         $this->load->view('templates/header', $data);
         $this->load->view('home/index', $data);
@@ -126,11 +134,30 @@ class Home extends CI_Controller {
             $product_id = $this->input->post('product_id');
             $quantity = $this->input->post('quantity') ?: 1;
 
-            if ($this->Order_model->add_to_cart($product_id, $quantity)) {
-                redirect_with_message('cart', 'Product added to cart successfully!');
-            } else {
-                redirect_with_message('products', 'Failed to add product to cart.', 'error');
+            // Fix: Always use 'quantity' as the key in cart session
+            $cart = $this->session->userdata('cart') ?: array();
+            $found = false;
+            foreach ($cart as &$item) {
+                if ($item['id'] == $product_id) {
+                    $item['quantity'] += $quantity;
+                    $found = true;
+                    break;
+                }
             }
+            if (!$found) {
+                $product = $this->Product_model->get_product_by_id($product_id);
+                if ($product) {
+                    $cart[] = array(
+                        'id' => $product->id,
+                        'name' => $product->name,
+                        'price' => $product->price,
+                        'quantity' => $quantity,
+                        'image' => $product->image
+                    );
+                }
+            }
+            $this->session->set_userdata('cart', $cart);
+            redirect_with_message('cart', 'Product added to cart successfully!');
         } else {
             // Show a friendly HTML message for GET requests
             $data['title'] = 'Add to Cart';
@@ -143,41 +170,39 @@ class Home extends CI_Controller {
     public function update_cart() {
         $product_id = $this->input->post('product_id');
         $quantity = $this->input->post('quantity');
-        
-        // Check if it's an AJAX request
-        if ($this->input->is_ajax_request()) {
-            if ($this->Order_model->update_cart_quantity($product_id, $quantity)) {
-                // Get updated cart data
-                $cart_items = $this->Order_model->get_cart_items();
-                $cart_total = get_cart_total();
-                $cart_count = get_cart_count();
-                
-                $response = array(
-                    'success' => true,
-                    'message' => 'Cart updated successfully!',
-                    'cart_total' => format_price($cart_total),
-                    'cart_count' => $cart_count,
-                    'item_total' => format_price($this->Order_model->get_cart_item_total($product_id))
-                );
-            } else {
-                $response = array(
-                    'success' => false,
-                    'message' => 'Failed to update cart.'
-                );
+        $cart = $this->session->userdata('cart') ?: array();
+        foreach ($cart as &$item) {
+            if ($item['id'] == $product_id) {
+                if ($quantity <= 0) {
+                    $cart = array_filter($cart, function($i) use ($product_id) { return $i['id'] != $product_id; });
+                } else {
+                    $item['quantity'] = $quantity;
+                }
+                break;
             }
-            
-            // Return JSON response
+        }
+        $this->session->set_userdata('cart', $cart);
+        // AJAX response or redirect handled as before
+        if ($this->input->is_ajax_request()) {
+            $cart_items = $cart;
+            $cart_total = 0;
+            $cart_count = 0;
+            foreach ($cart_items as $item) {
+                $cart_total += $item['price'] * $item['quantity'];
+                $cart_count += $item['quantity'];
+            }
+            $response = array(
+                'success' => true,
+                'message' => 'Cart updated successfully!',
+                'cart_total' => '$' . number_format($cart_total, 2),
+                'cart_count' => $cart_count,
+                'item_total' => '$' . number_format($item['price'] * $item['quantity'], 2)
+            );
             header('Content-Type: application/json');
             echo json_encode($response);
             return;
         }
-        
-        // For non-AJAX requests, redirect as before
-        if ($this->Order_model->update_cart_quantity($product_id, $quantity)) {
-            redirect_with_message('cart', 'Cart updated successfully!');
-        } else {
-            redirect_with_message('cart', 'Failed to update cart.', 'error');
-        }
+        redirect('cart');
     }
     
     public function remove_from_cart($product_id) {
@@ -237,7 +262,8 @@ class Home extends CI_Controller {
             $shipping_address = $this->input->post('shipping_address');
             $payment_method = $this->input->post('payment_method');
             
-            $order_id = $this->Order_model->create_order($user_id, $total_amount, $shipping_address, $payment_method);
+            // Pass customer_id = 0 for user orders
+            $order_id = $this->Order_model->create_order($user_id, $total_amount, $shipping_address, $payment_method, 0);
             
             if ($order_id) {
                 redirect_with_message('order/success/' . $order_id, 'Order placed successfully!');

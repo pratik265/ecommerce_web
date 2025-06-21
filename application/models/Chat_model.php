@@ -67,16 +67,18 @@ class Chat_model extends CI_Model {
                         ->result();
     }
     
-    // Send message
-    public function send_message($room_id, $sender_id, $sender_type, $message) {
+    // advanced send_message
+    public function send_message($room_id, $sender_id, $sender_type, $message, $receiver_user_id = null, $receiver_customer_id = null, $receiver_admin = 0) {
         $data = array(
             'room_id' => $room_id,
             'sender_id' => $sender_id,
             'sender_type' => $sender_type,
             'message' => $message,
+            'receiver_user_id' => $receiver_user_id,
+            'receiver_customer_id' => $receiver_customer_id,
+            'receiver_admin' => $receiver_admin,
             'is_read' => 0
         );
-        
         $this->db->insert('chat_messages', $data);
         return $this->db->insert_id();
     }
@@ -137,5 +139,50 @@ class Chat_model extends CI_Model {
         $stats['today_messages'] = $this->db->where('DATE(created_at)', date('Y-m-d'))->count_all_results('chat_messages');
         
         return $stats;
+    }
+
+    public function get_or_create_customer_room($customer_id, $user_id) {
+        $room = $this->db->where('customer_id', $customer_id)
+                        ->where('user_id', $user_id)
+                        ->get('customer_chat_rooms')
+                        ->row();
+        
+        if (!$room) {
+            $customer = $this->db->where('id', $customer_id)->get('customers')->row();
+            $room_name = 'Chat with ' . ($customer ? $customer->name : 'Customer');
+            
+            $room_data = array(
+                'customer_id' => $customer_id,
+                'user_id' => $user_id,
+                'room_name' => $room_name
+            );
+            
+            $this->db->insert('customer_chat_rooms', $room_data);
+            $room_id = $this->db->insert_id();
+            
+            return $this->db->where('id', $room_id)->get('customer_chat_rooms')->row();
+        }
+        
+        return $room;
+    }
+
+    public function get_customer_room_messages($room_id, $limit = 50) {
+        return $this->db->where('room_id', $room_id)
+                        ->order_by('created_at', 'ASC')
+                        ->limit($limit)
+                        ->get('customer_chat_messages')
+                        ->result();
+    }
+    
+    public function send_customer_message($room_id, $sender_id, $sender_type, $message) {
+        $data = array(
+            'room_id' => $room_id,
+            'sender_id' => $sender_id,
+            'sender_type' => $sender_type,
+            'message' => $message,
+            'is_read' => 0
+        );
+        $this->db->insert('customer_chat_messages', $data);
+        return $this->db->insert_id();
     }
 } 

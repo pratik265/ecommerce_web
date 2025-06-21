@@ -249,9 +249,9 @@
         </div>
         
         <!-- Chat Input -->
-        <div class="chat-input">
-            <input type="text" id="messageInput" placeholder="Type a message..." maxlength="500">
-            <button id="sendButton" onclick="sendMessage()">
+        <div class="chat-input" id="chatInputForm">
+            <input type="text" id="messageInput" class="form-control" placeholder="Type a message..." autocomplete="off">
+            <button id="sendButton" class="btn btn-primary rounded-pill">
                 <i class="fas fa-paper-plane"></i>
             </button>
         </div>
@@ -271,41 +271,25 @@
         
         // Send message
         function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const button = document.getElementById('sendButton');
-            const message = input.value.trim();
-            
+            const message = messageInput.val().trim();
             if (!message) return;
-            
-            // Disable input and button
-            input.disabled = true;
-            button.disabled = true;
-            
-            $.ajax({
-                url: '<?= base_url("chat/send_message") ?>',
-                type: 'POST',
-                data: { message: message },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.success) {
-                        // Add message to chat
-                        addMessage(message, 'sent', response.timestamp);
-                        input.value = '';
-                        lastMessageId = response.message_id;
-                    } else {
-                        alert('Failed to send message: ' + response.message);
-                    }
-                },
-                error: function() {
-                    alert('Failed to send message. Please try again.');
-                },
-                complete: function() {
-                    // Re-enable input and button
-                    input.disabled = false;
-                    button.disabled = false;
-                    input.focus();
+
+            sendButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+
+            $.post('<?= base_url("chat/send_message") ?>', {
+                message: message,
+                room_id: roomId
+            }, function(response) {
+                if(response.status === 'success') {
+                    renderMessage(response.message, 'user');
+                    lastMessageId = response.message.id;
+                    scrollToBottom();
+                    messageInput.val('');
+                } else {
+                    alert(response.message || 'Error sending message.');
                 }
-            });
+                sendButton.prop('disabled', false).html('<i class="fas fa-paper-plane"></i>');
+            }, 'json');
         }
         
         // Add message to chat

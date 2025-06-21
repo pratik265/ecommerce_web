@@ -6,159 +6,76 @@ class Chat extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->model('Chat_model');
+        if (!$this->session->userdata('user_id')) {
+            redirect_with_message('login', 'Please login to access chat support.', 'error');
+        }
     }
     
     public function index() {
-        // Check if user is logged in
-        if (!is_logged_in()) {
-            redirect_with_message('login', 'Please login to access chat support.', 'error');
-        }
         $user_id = $this->session->userdata('user_id');
-        $room = $this->Chat_model->get_or_create_room($user_id);
         
-        // Get messages
-        $messages = $this->Chat_model->get_room_messages($room->id);
-        
-        // Mark admin messages as read
-        $this->Chat_model->mark_as_read($room->id, 'admin');
-        
-        $data['title'] = 'Chat with Admin';
-        $data['room'] = $room;
-        $data['messages'] = $messages;
-        $data['unread_count'] = $this->Chat_model->get_unread_count($user_id);
-        
-        $this->load->view('templates/header', $data);
-        $this->load->view('chat/index', $data);
-        $this->load->view('templates/footer');
+        $data['room'] = $this->Chat_model->get_or_create_room($user_id);
+        $data['messages'] = $this->Chat_model->get_room_messages($data['room']->id);
+        $data['role'] = $this->session->userdata('role'); // Pass role for consistency
+
+        $this->load->view('chat/dynamic', $data);
     }
     
-    // AJAX method to send message
+    // AJAX: Send message
     public function send_message() {
         if (!$this->input->is_ajax_request()) {
             show_404();
         }
-        
-        // Check if user is logged in
-        if (!is_logged_in()) {
-            echo json_encode(array('success' => false, 'message' => 'Please login to send messages'));
-            return;
-        }
-        
-        $user_id = $this->session->userdata('user_id');
+
+        $sender_id = $this->session->userdata('user_id');
+        $room_id = $this->input->post('room_id');
         $message = trim($this->input->post('message'));
-        
-        if (empty($message)) {
-            echo json_encode(array('success' => false, 'message' => 'Message cannot be empty'));
+
+        if (empty($message) || empty($room_id)) {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid input.']);
             return;
         }
-        
-        // Get or create room
-        $room = $this->Chat_model->get_or_create_room($user_id);
-        
-        // Send message
-        $message_id = $this->Chat_model->send_message($room->id, $user_id, 'user', $message);
-        
+
+        $message_id = $this->Chat_model->send_message(
+            $room_id, 
+            $sender_id, 
+            'user', 
+            $message
+        );
+
         if ($message_id) {
-            echo json_encode(array(
-                'success' => true, 
-                'message_id' => $message_id,
-                'timestamp' => date('H:i')
-            ));
+            $new_message = $this->db->get_where('chat_messages', ['id' => $message_id])->row();
+            echo json_encode(['status' => 'success', 'message' => $new_message]);
         } else {
-            echo json_encode(array('success' => false, 'message' => 'Failed to send message'));
+            echo json_encode(['status' => 'error', 'message' => 'Failed to send message.']);
         }
     }
     
-    // AJAX method to get new messages
-    public function get_messages() {
+    // AJAX: Get new messages
+    public function get_new_messages($room_id, $last_message_id = 0) {
         if (!$this->input->is_ajax_request()) {
             show_404();
         }
         
-        // Check if user is logged in
-        if (!is_logged_in()) {
-            echo json_encode(array('success' => false, 'message' => 'Please login to access messages'));
-            return;
-        }
-        
-        $user_id = $this->session->userdata('user_id');
-        $room = $this->Chat_model->get_user_room($user_id);
-        
-        if (!$room) {
-            echo json_encode(array('success' => false, 'message' => 'No chat room found'));
-            return;
-        }
-        
-        $messages = $this->Chat_model->get_room_messages($room->id);
-        
-        // Mark admin messages as read
-        $this->Chat_model->mark_as_read($room->id, 'admin');
-        
-        $formatted_messages = array();
-        foreach ($messages as $msg) {
-            $formatted_messages[] = array(
-                'id' => $msg->id,
-                'message' => $msg->message,
-                'sender_type' => $msg->sender_type,
-                'timestamp' => date('H:i', strtotime($msg->created_at)),
-                'is_read' => $msg->is_read
-            );
-        }
-        
-        echo json_encode(array(
-            'success' => true,
-            'messages' => $formatted_messages,
-            'unread_count' => $this->Chat_model->get_unread_count($user_id)
-        ));
-    }
-    
-    // AJAX method to check for new messages
-    public function check_new_messages() {
-        if (!$this->input->is_ajax_request()) {
-            show_404();
-        }
-        
-        // Check if user is logged in
-        if (!is_logged_in()) {
-            echo json_encode(array('success' => false, 'message' => 'Please login to access messages'));
-            return;
-        }
-        
-        $user_id = $this->session->userdata('user_id');
-        $last_message_id = $this->input->post('last_message_id');
-        
-        $room = $this->Chat_model->get_user_room($user_id);
-        if (!$room) {
-            echo json_encode(array('success' => false));
-            return;
-        }
-        
-        // Get new messages
-        $new_messages = $this->db->where('room_id', $room->id)
-                                 ->where('id >', $last_message_id)
-                                 ->where('sender_type', 'admin')
+        $new_messages = $this->db->where('room_id', $room_id)
+                                 ->where('id >', (int)$last_message_id)
                                  ->order_by('created_at', 'ASC')
                                  ->get('chat_messages')
                                  ->result();
-        
-        // Mark as read
+
         if (!empty($new_messages)) {
-            $this->Chat_model->mark_as_read($room->id, 'admin');
+            $this->Chat_model->mark_as_read($room_id, 'admin');
         }
         
-        $formatted_messages = array();
-        foreach ($new_messages as $msg) {
-            $formatted_messages[] = array(
-                'id' => $msg->id,
-                'message' => $msg->message,
-                'timestamp' => date('H:i', strtotime($msg->created_at))
-            );
+        echo json_encode(['status' => 'success', 'messages' => $new_messages]);
+    }
+
+    // AJAX: Mark messages as read
+    public function mark_as_read() {
+        if ($this->input->is_ajax_request()) {
+            $room_id = $this->input->post('room_id');
+            $this->Chat_model->mark_as_read($room_id, 'admin');
+            echo json_encode(['status' => 'success']);
         }
-        
-        echo json_encode(array(
-            'success' => true,
-            'new_messages' => $formatted_messages,
-            'unread_count' => $this->Chat_model->get_unread_count($user_id)
-        ));
     }
 } 

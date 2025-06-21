@@ -1,3 +1,8 @@
+<?php
+$form_action = isset($user_id) && $user_id ? 'customer/register/'.$user_id : 'register';
+$title = isset($user_id) && $user_id ? 'Customer Registration' : 'Create Account';
+$login_url = isset($user_id) && $user_id ? base_url('customer/login') : base_url('login');
+?>
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-8 col-lg-6">
@@ -5,11 +10,11 @@
                 <div class="card-body p-5">
                     <div class="text-center mb-4">
                         <i class="fas fa-user-plus fa-3x text-primary mb-3"></i>
-                        <h3 class="fw-bold">Create Account</h3>
+                        <h3 class="fw-bold"><?= $title ?></h3>
                         <p class="text-muted">Join our community today</p>
                     </div>
                     
-                    <?= form_open('register', ['class' => 'needs-validation', 'novalidate' => '']) ?>
+                    <?= form_open($form_action, ['class' => 'needs-validation', 'novalidate' => '']) ?>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="name" class="form-label">Full Name</label>
@@ -84,7 +89,7 @@
                     
                     <div class="text-center">
                         <p class="mb-0">Already have an account? 
-                            <a href="<?= base_url('login') ?>" class="text-primary fw-bold">Sign in here</a>
+                            <a href="<?= $login_url ?>" class="text-primary fw-bold">Sign in here</a>
                         </p>
                     </div>
                 </div>

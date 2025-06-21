@@ -32,6 +32,7 @@
                             <a href="<?= base_url('admin/unblock_user/' . $user->id) ?>" class="btn btn-success btn-sm">Unblock</a>
                         <?php endif; ?>
                         <a href="<?= base_url('admin/delete_user/' . $user->id) ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this user?')">Delete</a>
+                        <a href="<?= base_url('admin/user_customers/' . $user->id) ?>" class="btn btn-info btn-sm">View Customers</a>
                     </td>
                 </tr>
             <?php endforeach; ?>

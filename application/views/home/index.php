@@ -42,6 +42,124 @@
 </div>
 <?php endif; ?>
 
+<?php if (is_logged_in() && (isset($customers) || isset($orders))): ?>
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col-12 text-center">
+                <div class="card shadow-sm p-4 d-inline-block">
+                    <h3 class="mb-2"><i class="fas fa-users text-primary me-2"></i>My Customers</h3>
+                    <h1 class="display-4 fw-bold text-success mb-0"><?= count($customers) ?></h1>
+                    <p class="text-muted mb-0">Total Customers</p>
+                </div>
+            </div>
+        </div>
+        <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="customers-tab" data-bs-toggle="tab" data-bs-target="#customers" type="button" role="tab" aria-controls="customers" aria-selected="true">Customers</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button" role="tab" aria-controls="orders" aria-selected="false">Orders</button>
+            </li>
+        </ul>
+        <div class="tab-content" id="dashboardTabsContent">
+            <div class="tab-pane fade show active" id="customers" role="tabpanel" aria-labelledby="customers-tab">
+                <?php if (!empty($customers)): ?>
+                <div class="row justify-content-center">
+                    <div class="col-lg-10">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Customer List</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-striped mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Name</th>
+                                                <th>Email</th>
+                                                <th>Phone</th>
+                                                <th>Address</th>
+                                                <th>Status</th>
+                                                <th>Joined</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($customers as $i => $customer): ?>
+                                            <tr>
+                                                <td><?= $i + 1 ?></td>
+                                                <td><?= htmlspecialchars($customer->name) ?></td>
+                                                <td><?= htmlspecialchars($customer->email) ?></td>
+                                                <td><?= htmlspecialchars($customer->phone) ?></td>
+                                                <td><?= htmlspecialchars($customer->address) ?></td>
+                                                <td>
+                                                    <?php if ($customer->status == 'active'): ?>
+                                                        <span class="badge bg-success">Active</span>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-danger">Blocked</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td><?= date('M d, Y', strtotime($customer->created_at)) ?></td>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php else: ?>
+                    <div class="alert alert-info mt-3">No customers found.</div>
+                <?php endif; ?>
+            </div>
+            <div class="tab-pane fade" id="orders" role="tabpanel" aria-labelledby="orders-tab">
+                <?php if (!empty($orders)): ?>
+                <div class="row justify-content-center">
+                    <div class="col-lg-10">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Order List</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-striped mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Order #</th>
+                                                <th>Date</th>
+                                                <th>Total</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($orders as $i => $order): ?>
+                                            <tr>
+                                                <td><?= $i + 1 ?></td>
+                                                <td><?= htmlspecialchars($order->order_number) ?></td>
+                                                <td><?= date('M d, Y', strtotime($order->created_at)) ?></td>
+                                                <td>₹<?= number_format($order->total_amount, 2) ?></td>
+                                                <td><span class="badge bg-secondary text-capitalize"><?= htmlspecialchars($order->status) ?></span></td>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php else: ?>
+                    <div class="alert alert-info mt-3">No orders found.</div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
+
 <!-- Featured Products Section -->
 <section class="py-5">
     <div class="container">
