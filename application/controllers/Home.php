@@ -275,7 +275,7 @@ class Home extends CI_Controller {
     
     public function order_success($order_id) {
         if (!is_logged_in()) {
-            redirect_with_message('login', 'Please login to view order details.', 'error');
+            redirect_with_message('login', 'Please login to view order details !', 'error');
         }
         
         $order = $this->Order_model->get_order_by_id($order_id);
